@@ -88,67 +88,45 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-    // 1. Initialize map
     var map = L.map('map').setView([22.5937, 78.9629], 5);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap'
-    }).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
     var marker;
 
-    // 2. SEARCH CITY FUNCTION
     async function searchCity() {
         const city = document.getElementById('citySearch').value;
         if (!city) return alert("Please enter a city name");
-
         try {
-            // Using OpenStreetMap's free Geocoding API (Nominatim)
             const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${city}`);
             const data = await response.json();
-
             if (data.length > 0) {
                 const lat = parseFloat(data[0].lat);
                 const lon = parseFloat(data[0].lon);
-
-                // Move map to the city
                 map.setView([lat, lon], 12);
-                
-                // Place marker and call prediction
                 updateMarkerAndPredict(lat, lon);
-            } else {
-                alert("City not found. Please try another name.");
-            }
-        } catch (error) {
-            console.error("Geocoding error:", error);
-        }
+            } else { alert("City not found."); }
+        } catch (error) { console.error("Search error:", error); }
     }
 
-    // 3. MAP CLICK HANDLER
     map.on('click', function(e) {
         updateMarkerAndPredict(e.latlng.lat, e.latlng.lng);
     });
 
-    // 4. COMMON FUNCTION FOR MARKER & PREDICTION
     function updateMarkerAndPredict(lat, lon) {
         if (marker) map.removeLayer(marker);
-
-        marker = L.marker([lat, lon]).addTo(map)
-            .bindPopup(`Lat: ${lat.toFixed(3)}<br>Lng: ${lon.toFixed(3)}`)
-            .openPopup();
-
+        marker = L.marker([lat, lon]).addTo(map).bindPopup(`Checking Location...`).openPopup();
         simulateFloodPrediction(lat, lon);
     }
 
-    // 5. BACKEND CONNECTED FUNCTION
     async function simulateFloodPrediction(lat, lon) {
         document.getElementById("statusText").innerText = "ANALYZING...";
-
         try {
-            const response = await fetch(`http://127.0.0.1:8000/get_risk?lat=${lat}&lon=${lon}`);
+            // UPDATED IP FOR YOUR LOCAL NETWORK
+            const response = await fetch(`http://10.18.0.164:8000/get_risk?lat=${lat}&lon=${lon}`);
             const data = await response.json();
 
             document.getElementById("rainText").innerText = data.rainfall + " mm/h";
-            document.getElementById("statusText").innerText = data.risk;
+            document.getElementById("statusText").innerText = data.risk + (data.simulated ? " (SIM)" : "");
             document.getElementById("cityName").innerText = data.city;
 
             let card = document.getElementById("statusCard");
@@ -157,14 +135,12 @@
 
             if (data.risk === "HIGH") {
                 card.classList.add("high-risk");
-                setTimeout(() => alert(`🚨 HIGH RISK: Flood potential in ${data.city}!`), 200);
             }
         } catch (error) {
-            console.error("Backend Error:", error);
             document.getElementById("statusText").innerText = "SERVER ERROR";
+            console.error(error);
         }
     }
 </script>
-
 </body>
 </html>
